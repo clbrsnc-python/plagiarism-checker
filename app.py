@@ -60,7 +60,7 @@ def analyze_ai_patterns(text):
             "sentence": sent,
             "word_count": len(sent.split()),
             "is_ai": is_ai,
-            "reason": "AI Signature Vocabulary" if has_ai_word else ("Uniform Sentence Structure" if is_ai else "Natural Human Pattern")
+            "reason": "AI Signature Keyword" if has_ai_word else ("Uniform AI Rhythm" if is_ai else "Natural Human Flow")
         })
 
     base_score = 30 if len(ai_flagged_sentences) > 0 else 5
@@ -94,7 +94,7 @@ def check_web_plagiarism(text, max_queries=8):
                 if results:
                     matched_queries_count += 1
                     for res in results:
-                        title = res.get("title", "Public Web Match")
+                        title = res.get("title", "Web Source Match")
                         url = res.get("href", "#")
                         snippet = res.get("body", "")
                         matches.append({"phrase": query, "title": title, "url": url, "snippet": snippet})
@@ -107,23 +107,23 @@ def check_web_plagiarism(text, max_queries=8):
     plagiarism_score = round((matched_queries_count / max(1, len(selected_queries))) * 100, 1)
     return plagiarism_score, matches, flagged_phrases
 
-# --- HTML Document Renderer ---
+# --- High-Vibe HTML Renderer ---
 def render_highlighted_document(full_text, ai_sentences, web_flagged_phrases):
     highlighted_text = full_text
 
     for phrase, url in web_flagged_phrases:
         escaped_phrase = re.escape(phrase)
-        replacement = f'<mark style="background-color: #fee2e2; color: #991b1b; padding: 3px 6px; border-radius: 4px; border: 1px solid #fca5a5; font-weight: 500;"><b>[Web Match]</b> {phrase} <a href="{url}" target="_blank" style="color: #991b1b; text-decoration: underline; font-weight: bold;">(Source)</a></mark>'
+        replacement = f'<mark style="background: rgba(244, 63, 94, 0.25); color: #fda4af; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(244, 63, 94, 0.5); font-weight: 600;"><b>[Web Match]</b> {phrase} <a href="{url}" target="_blank" style="color: #f43f5e; text-decoration: underline; font-weight: 700;">(Source 🔗)</a></mark>'
         highlighted_text = re.sub(escaped_phrase, replacement, highlighted_text)
 
     for sent in ai_sentences:
         escaped_sent = re.escape(sent)
-        replacement = f'<mark style="background-color: #fef3c7; color: #92400e; padding: 3px 6px; border-radius: 4px; border: 1px solid #fcd34d; font-weight: 500;"><b>[AI Flagged]</b> {sent}</mark>'
+        replacement = f'<mark style="background: rgba(245, 158, 11, 0.25); color: #fde68a; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.5); font-weight: 600;"><b>[AI Flagged]</b> {sent}</mark>'
         highlighted_text = re.sub(escaped_sent, replacement, highlighted_text)
 
     return highlighted_text
 
-# --- PDF Helpers (Guarantees No Horizontal Overflow) ---
+# --- PDF Helpers (Bulletproof Margin Protection) ---
 def clean_pdf_str(text):
     if not text:
         return ""
@@ -135,7 +135,7 @@ def clean_pdf_str(text):
         text = text.replace(k, v)
     return text.encode('latin-1', 'replace').decode('latin-1')
 
-def wrap_long_words(text, max_len=35):
+def wrap_long_words(text, max_len=32):
     if not text:
         return ""
     words = text.split(" ")
@@ -148,17 +148,15 @@ def wrap_long_words(text, max_len=35):
             wrapped.append(w)
     return " ".join(wrapped)
 
-# --- Bulletproof PDF Generator ---
 def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_margins(15, 15, 15)
 
-    # Header
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 10, clean_pdf_str("WriteSafe Analysis Report"), new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.cell(0, 10, clean_pdf_str("WriteSafe Audit Report"), new_x="LMARGIN", new_y="NEXT", align="C")
     
     pdf.set_font("Helvetica", "I", 10)
     pdf.set_text_color(100, 116, 139)
@@ -169,10 +167,9 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
     pdf.line(15, pdf.get_y(), 195, pdf.get_y())
     pdf.ln(6)
 
-    # Executive Summary
     pdf.set_font("Helvetica", "B", 12)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 8, clean_pdf_str("1. Executive Summary"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, clean_pdf_str("1. Vibe Check Executive Summary"), new_x="LMARGIN", new_y="NEXT")
     
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(51, 65, 85)
@@ -187,7 +184,6 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
     pdf.line(15, pdf.get_y(), 195, pdf.get_y())
     pdf.ln(6)
 
-    # Web Matches Section
     pdf.set_font("Helvetica", "B", 12)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 8, clean_pdf_str("2. Public Web Matches Breakdown"), new_x="LMARGIN", new_y="NEXT")
@@ -202,7 +198,7 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(71, 85, 105)
             phrase = wrap_long_words(clean_pdf_str(match.get('phrase', '')))
-            url = wrap_long_words(clean_pdf_str(match.get('url', '')), max_len=35)
+            url = wrap_long_words(clean_pdf_str(match.get('url', '')), max_len=30)
             
             pdf.multi_cell(0, 5, clean_pdf_str(f"Matched Phrase: \"{phrase}\""), new_x="LMARGIN", new_y="NEXT")
             pdf.multi_cell(0, 5, clean_pdf_str(f"Source URL: {url}"), new_x="LMARGIN", new_y="NEXT")
@@ -223,8 +219,8 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
     
     return bytes(pdf.output())
 
-# --- Page Config & High-End CSS Styling ---
-st.set_page_config(page_title="WriteSafe", layout="wide", page_icon="🛡️")
+# --- Page Config & Gen Z Dark Glass Theme ---
+st.set_page_config(page_title="WriteSafe", layout="wide", page_icon="✨")
 
 st.markdown("""
     <style>
@@ -235,153 +231,154 @@ st.markdown("""
     }
     
     .stApp {
-        background-color: #f8fafc;
+        background-color: #0b0f19;
+        color: #f8fafc;
     }
     
-    /* Hero Header */
-    .hero-container {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-        padding: 32px 28px;
-        border-radius: 20px;
-        color: #ffffff;
+    /* Hero Banner */
+    .genz-hero {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 27, 75, 0.9) 50%, rgba(88, 28, 135, 0.8) 100%);
+        backdrop-filter: blur(16px);
+        padding: 36px 30px;
+        border-radius: 24px;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        box-shadow: 0 20px 40px -15px rgba(139, 92, 246, 0.3);
         margin-bottom: 28px;
-        box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .hero-badge {
-        background: rgba(51, 65, 85, 0.6);
-        color: #38bdf8;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 4px 12px;
-        border-radius: 20px;
+    
+    .genz-badge {
+        background: linear-gradient(90deg, #ec4899 0%, #8b5cf6 100%);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 5px 14px;
+        border-radius: 30px;
         display: inline-block;
         margin-bottom: 12px;
-        letter-spacing: 0.5px;
-        border: 1px solid rgba(56, 189, 248, 0.3);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
     }
-    .hero-title {
-        font-size: 36px;
+    
+    .genz-title {
+        font-size: 40px;
         font-weight: 800;
-        letter-spacing: -0.8px;
+        letter-spacing: -1px;
         margin: 0;
-        color: #ffffff;
+        background: linear-gradient(90deg, #ffffff 0%, #cbd5e1 50%, #a78bfa 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
-    .hero-tagline {
-        font-size: 16px;
+    
+    .genz-tagline {
+        font-size: 17px;
         color: #94a3b8;
         margin-top: 8px;
-        font-weight: 400;
+        font-weight: 500;
     }
 
-    /* Score Cards */
-    .metric-card-box {
-        background: #ffffff;
+    /* Glass Score Cards */
+    .glass-card {
+        background: rgba(17, 24, 39, 0.7);
+        backdrop-filter: blur(12px);
         padding: 24px;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         text-align: center;
-        transition: transform 0.2s ease;
     }
-    .metric-card-label {
+    .glass-card-title {
         font-size: 13px;
-        color: #64748b;
+        color: #94a3b8;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 1px;
     }
-    .metric-card-value {
-        font-size: 42px;
+    .glass-card-val {
+        font-size: 46px;
         font-weight: 800;
-        color: #0f172a;
         margin: 10px 0;
+        letter-spacing: -1px;
     }
 
-    /* Document Stats Bar */
-    .stats-strip {
-        background: #ffffff;
+    /* Stats Strip */
+    .genz-stats-bar {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         padding: 16px 24px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
         display: flex;
         justify-content: space-around;
-        align-items: center;
         margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
     }
-    .stat-item {
-        text-align: center;
+    .genz-stat-num {
+        font-size: 22px;
+        font-weight: 800;
+        color: #38bdf8;
     }
-    .stat-number {
-        font-size: 20px;
-        font-weight: 700;
-        color: #0f172a;
-    }
-    .stat-label {
+    .genz-stat-lbl {
         font-size: 12px;
         color: #64748b;
         font-weight: 600;
     }
 
-    /* Marked Paper Display */
-    .marked-paper {
-        background-color: #ffffff;
+    /* Marked Reader Canvas */
+    .marked-canvas {
+        background: #0f172a;
         padding: 32px;
-        border-radius: 16px;
-        border: 1px solid #cbd5e1;
-        line-height: 2.1;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        line-height: 2.2;
         font-size: 16px;
-        color: #1e293b;
-        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+        color: #e2e8f0;
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
     }
 
-    /* Footer Card */
-    .footer-banner {
-        background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
-        color: #f8fafc;
+    /* Footer Badge */
+    .genz-footer {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(139, 92, 246, 0.2);
         padding: 18px;
-        border-radius: 14px;
+        border-radius: 16px;
         text-align: center;
+        color: #cbd5e1;
         font-size: 15px;
         font-weight: 600;
         margin-top: 36px;
-        box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Hero Banner ---
+# --- Hero Header ---
 st.markdown("""
-    <div class="hero-container">
-        <div class="hero-badge">ACADEMIC INTEGRITY ENGINE v2.4</div>
-        <div class="hero-title">🛡️ WriteSafe</div>
-        <div class="hero-tagline">“Catch plagiarism and AI-sounding text before you submit.”</div>
+    <div class="genz-hero">
+        <div class="genz-badge">✨ NO-CAP AI & PLAGIARISM CHECKER</div>
+        <div class="genz-title">🛡️ WriteSafe</div>
+        <div class="genz-tagline">“Catch plagiarism and AI-sounding text before you submit.”</div>
     </div>
 """, unsafe_allow_html=True)
 
 # --- Sidebar ---
-st.sidebar.title("🛡️ WriteSafe Portal")
-st.sidebar.info(
-    "**WriteSafe** is an academic analysis suite designed to audit research drafts, essays, and publications "
-    "for AI-generated writing phrasing and public web source overlaps."
+st.sidebar.title("✨ WriteSafe Studio")
+st.sidebar.markdown(
+    "Upload your essay, assignment, or research draft. "
+    "**WriteSafe** audits your writing style for AI vibes and scans public web databases in real-time."
 )
-st.sidebar.markdown("---")
-st.sidebar.caption("Crafted for students, faculty, and academic researchers.")
+st.sidebar.caption("⚡ Fast • 🔒 Private • 💯 Submission Ready")
 
-# --- Document Input Area ---
-uploaded_file = st.file_uploader("Upload Draft Document (.pdf, .docx, .txt)", type=["pdf", "docx", "txt"])
-pasted_text = st.text_area("Or paste draft text directly", height=180, placeholder="Paste your research or assignment text here...")
+# --- Document Upload / Input ---
+uploaded_file = st.file_uploader("Upload Draft (.pdf, .docx, .txt)", type=["pdf", "docx", "txt"])
+pasted_text = st.text_area("Or paste your text directly", height=170, placeholder="Paste your essay or research paper here...")
 
 document_text = extract_text(uploaded_file) if uploaded_file else pasted_text
 
-if st.button("🚀 Run WriteSafe Audit", type="primary", use_container_width=True):
+if st.button("⚡ Vibe Check My Draft", type="primary", use_container_width=True):
     if not document_text.strip():
-        st.warning("Please upload a document or paste text first.")
+        st.warning("Drop a file or paste your text first!")
     else:
         st.markdown("<br>", unsafe_allow_html=True)
 
-        with st.spinner("Executing neural vocabulary scan and public domain web audit..."):
+        with st.spinner("Auditing AI vocabulary patterns & scanning public web sources..."):
             ai_score, ai_sents, sentence_analysis = analyze_ai_patterns(document_text)
             plag_score, web_matches, web_phrases = check_web_plagiarism(document_text)
 
@@ -394,89 +391,89 @@ if st.button("🚀 Run WriteSafe Audit", type="primary", use_container_width=Tru
             "web_matches_count": len(web_matches)
         }
 
-        # --- Score Dashboard ---
+        # --- Glass Score Dashboard ---
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown(f"""
-                <div class="metric-card-box">
-                    <div class="metric-card-label">AI Generation Probability</div>
-                    <div class="metric-card-value">{ai_score}%</div>
+                <div class="glass-card">
+                    <div class="glass-card-title">🤖 AI Generation Vibe</div>
+                    <div class="glass-card-val" style="color: {'#f43f5e' if ai_score > 60 else '#f59e0b' if ai_score > 35 else '#10b981'};">{ai_score}%</div>
                 </div>
             """, unsafe_allow_html=True)
             if ai_score > 60:
-                st.error("⚠️ High likelihood of machine-generated text.")
+                st.error("⚠️ Heavy AI phrasing detected. Consider humanizing your draft!")
             elif ai_score > 35:
-                st.warning("⚡ Moderate AI influence or mixed editing.")
+                st.warning("⚡ Mixed AI/Human vibes detected.")
             else:
-                st.success("✅ Content displays natural human writing variation.")
+                st.success("💯 Clean! Reads like authentic human writing.")
 
         with col2:
             st.markdown(f"""
-                <div class="metric-card-box">
-                    <div class="metric-card-label">Web Plagiarism / Similarity</div>
-                    <div class="metric-card-value">{plag_score}%</div>
+                <div class="glass-card">
+                    <div class="glass-card-title">🌐 Web Similarity Score</div>
+                    <div class="glass-card-val" style="color: {'#f43f5e' if plag_score > 50 else '#f59e0b' if plag_score > 20 else '#10b981'};">{plag_score}%</div>
                 </div>
             """, unsafe_allow_html=True)
             if plag_score > 50:
-                st.error(f"⚠️ High similarity across {len(web_matches)} web sources.")
+                st.error(f"⚠️ High overlap found across {len(web_matches)} web sources.")
             elif plag_score > 20:
-                st.warning(f"⚡ Moderate similarity across {len(web_matches)} web sources.")
+                st.warning(f"⚡ Moderate similarity across {len(web_matches)} sources.")
             else:
-                st.success("✅ Low or no public domain web overlap.")
+                st.success("🎉 No cap! Zero public web plagiarism found.")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- Document Stats Strip ---
+        # --- Document Stats Bar ---
         st.markdown(f"""
-            <div class="stats-strip">
-                <div class="stat-item"><div class="stat-number">{doc_stats['word_count']}</div><div class="stat-label">Total Words</div></div>
-                <div class="stat-item"><div class="stat-number">{doc_stats['sentence_count']}</div><div class="stat-label">Sentences</div></div>
-                <div class="stat-item"><div class="stat-number">{doc_stats['ai_flagged_count']}</div><div class="stat-label">AI Sentences</div></div>
-                <div class="stat-item"><div class="stat-number">{doc_stats['web_matches_count']}</div><div class="stat-label">Web Matches</div></div>
+            <div class="genz-stats-bar">
+                <div style="text-align: center;"><div class="genz-stat-num">{doc_stats['word_count']}</div><div class="genz-stat-lbl">Words</div></div>
+                <div style="text-align: center;"><div class="genz-stat-num">{doc_stats['sentence_count']}</div><div class="genz-stat-lbl">Sentences</div></div>
+                <div style="text-align: center;"><div class="genz-stat-num" style="color: #f59e0b;">{doc_stats['ai_flagged_count']}</div><div class="genz-stat-lbl">AI Sentences</div></div>
+                <div style="text-align: center;"><div class="genz-stat-num" style="color: #f43f5e;">{doc_stats['web_matches_count']}</div><div class="genz-stat-lbl">Web Matches</div></div>
             </div>
         """, unsafe_allow_html=True)
 
-        # --- Tabbed Workspace ---
+        # --- Tabs View ---
         tab1, tab2, tab3, tab4 = st.tabs([
-            "🖍️ Marked Document Reader", 
-            "🌐 Web Sources Breakdown", 
-            "📊 Sentence Analysis",
-            "📄 Download PDF Report"
+            "🔍 Marked Document Reader", 
+            "🌐 Web Source Overlaps", 
+            "⚡ Sentence Vibe Check",
+            "📄 Download Verified PDF"
         ])
 
         with tab1:
-            st.caption("🟨 **Yellow Highlight** = AI-flagged sentence pattern | 🟥 **Red Highlight** = Exact public web match (with clickable source link)")
+            st.caption("🟨 **Yellow Highlight** = AI-flagged pattern | 🟥 **Red Highlight** = Web source match (with source link)")
             highlighted_html = render_highlighted_document(document_text, ai_sents, web_phrases)
-            st.markdown(f'<div class="marked-paper">{highlighted_html}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="marked-canvas">{highlighted_html}</div>', unsafe_allow_html=True)
 
         with tab2:
             if web_matches:
-                st.subheader(f"Found {len(web_matches)} Matching Web Sources")
+                st.subheader(f"Found {len(web_matches)} Public Web Overlaps")
                 for idx, match in enumerate(web_matches, 1):
                     with st.expander(f"Match #{idx}: {match['title']}"):
-                        st.write(f"**Matched Text Fragment:** \"{match['phrase']}\"")
+                        st.write(f"**Matched Phrase:** \"{match['phrase']}\"")
                         st.write(f"**Direct URL:** [{match['url']}]({match['url']})")
                         if match.get('snippet'):
                             st.caption(f"**Web Snippet:** {match['snippet']}")
             else:
-                st.success("🎉 No matching public domain sources detected for the sampled phrases.")
+                st.success("🎉 Clean slate! No matching public domain web sources detected.")
 
         with tab3:
-            st.subheader("Sentence-by-Sentence AI Evaluation")
+            st.subheader("Sentence-by-Sentence AI Audit")
             for idx, item in enumerate(sentence_analysis, 1):
-                status_icon = "🔴 AI Flagged" if item["is_ai"] else "🟢 Human Writing"
+                status_icon = "🔴 AI Flagged" if item["is_ai"] else "🟢 Clean Human Flow"
                 with st.expander(f"Sentence #{idx} ({item['word_count']} words) — {status_icon}"):
                     st.write(f"\"{item['sentence']}\"")
-                    st.caption(f"**Evaluation Detail:** {item['reason']}")
+                    st.caption(f"**Reason:** {item['reason']}")
 
         with tab4:
-            st.subheader("Verified Academic PDF Summary Report")
-            st.write("Generate and download a formal audit report suitable for submission or records.")
+            st.subheader("Grab Your PDF Audit Report")
+            st.write("Need proof for your records or professor? Download your verified summary report:")
             try:
                 pdf_bytes = create_pdf_report(ai_score, plag_score, web_matches, doc_stats)
                 st.download_button(
-                    label="📥 Download WriteSafe PDF Summary Report",
+                    label="📥 Download WriteSafe PDF Report",
                     data=pdf_bytes,
                     file_name="WriteSafe_Plagiarism_AI_Analysis_Report.pdf",
                     mime="application/pdf",
@@ -485,9 +482,9 @@ if st.button("🚀 Run WriteSafe Audit", type="primary", use_container_width=Tru
             except Exception as e:
                 st.error(f"Could not generate PDF: {e}")
 
-# --- Footer ---
+# --- Footer Credits ---
 st.markdown("""
-    <div class="footer-banner">
+    <div class="genz-footer">
         Crafted by: Dr. Joydip Chandra, BRSC
     </div>
 """, unsafe_allow_html=True)
