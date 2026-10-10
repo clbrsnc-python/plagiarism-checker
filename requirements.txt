@@ -3,3 +3,4 @@ pypdf
 python-docx
 duckduckgo-search
 fpdf2
+requests
