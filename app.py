@@ -60,7 +60,7 @@ def analyze_ai_patterns(text):
             "sentence": sent,
             "word_count": len(sent.split()),
             "is_ai": is_ai,
-            "reason": "AI Signature Keyword" if has_ai_word else ("Uniform Sentence Structure" if is_ai else "Natural Human Style")
+            "reason": "AI Signature Keyword" if has_ai_word else ("Uniform AI Rhythm" if is_ai else "Natural Human Flow")
         })
 
     base_score = 30 if len(ai_flagged_sentences) > 0 else 5
@@ -107,23 +107,23 @@ def check_web_plagiarism(text, max_queries=8):
     plagiarism_score = round((matched_queries_count / max(1, len(selected_queries))) * 100, 1)
     return plagiarism_score, matches, flagged_phrases
 
-# --- HTML Inline Document Renderer ---
+# --- High-Contrast Highlighting ---
 def render_highlighted_document(full_text, ai_sentences, web_flagged_phrases):
     highlighted_text = full_text
 
     for phrase, url in web_flagged_phrases:
         escaped_phrase = re.escape(phrase)
-        replacement = f'<mark style="background: rgba(244, 63, 94, 0.22); color: #fca5a5; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(244, 63, 94, 0.5); font-weight: 600;"><b>[Web Match]</b> {phrase} <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: 700;">(Source Link)</a></mark>'
+        replacement = f'<mark style="background: rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 3px 8px; border-radius: 6px; border: 1px solid #ef4444; font-weight: 600;"><b>[Web Match]</b> {phrase} <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: 700;">(Source 🔗)</a></mark>'
         highlighted_text = re.sub(escaped_phrase, replacement, highlighted_text)
 
     for sent in ai_sentences:
         escaped_sent = re.escape(sent)
-        replacement = f'<mark style="background: rgba(245, 158, 11, 0.22); color: #fef08a; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.5); font-weight: 600;"><b>[AI Flagged]</b> {sent}</mark>'
+        replacement = f'<mark style="background: rgba(245, 158, 11, 0.35); color: #fef08a; padding: 3px 8px; border-radius: 6px; border: 1px solid #f59e0b; font-weight: 600;"><b>[AI Flagged]</b> {sent}</mark>'
         highlighted_text = re.sub(escaped_sent, replacement, highlighted_text)
 
     return highlighted_text
 
-# --- PDF Helpers (Safe Margin Formatting) ---
+# --- PDF Helpers ---
 def clean_pdf_str(text):
     if not text:
         return ""
@@ -156,7 +156,7 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
 
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 10, clean_pdf_str("WriteSafe Analysis Report"), new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.cell(0, 10, clean_pdf_str("WriteSafe Audit Report"), new_x="LMARGIN", new_y="NEXT", align="C")
     
     pdf.set_font("Helvetica", "I", 10)
     pdf.set_text_color(100, 116, 139)
@@ -219,8 +219,8 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats):
     
     return bytes(pdf.output())
 
-# --- Page Config & Styling ---
-st.set_page_config(page_title="WriteSafe", layout="wide", page_icon="🛡️")
+# --- Page Config & Dominant Sky Blue CSS Theme ---
+st.set_page_config(page_title="WriteSafe", layout="wide", page_icon="✨")
 
 st.markdown("""
     <style>
@@ -230,197 +230,237 @@ st.markdown("""
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
     
+    /* Background: Dark Navy / Midnight Slate */
     .stApp {
-        background-color: #0d111d;
-        color: #f1f5f9;
+        background-color: #0b1329;
+        color: #f8fafc;
     }
-    
-    /* High Legibility Labels & Uploader */
-    label, p, span, div {
-        color: #f1f5f9 !important;
+
+    /* Force 100% legibility on all text, labels, and spans */
+    label, .stMarkdown, p, span, div, h1, h2, h3, h4, h5, h6, .stCaption {
+        color: #f8fafc !important;
     }
-    
-    .stTextArea textarea {
-        background-color: #1e1b4b !important;
+
+    /* Sidebar Background and High Legibility */
+    [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+        border-right: 1px solid #0284c7 !important;
+    }
+
+    /* File Uploader Custom Styling - Vibrant Sky Blue */
+    [data-testid="stFileUploader"] {
+        background: #1e293b !important;
+        border: 2px dashed #38bdf8 !important;
+        border-radius: 16px !important;
+        padding: 22px !important;
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.2) !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background-color: transparent !important;
+    }
+    [data-testid="stFileUploader"] label {
+        color: #38bdf8 !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+    }
+    [data-testid="stFileUploader"] span, [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] p {
+        color: #cbd5e1 !important;
+        font-size: 14px !important;
+    }
+    [data-testid="stFileUploader"] button {
+        background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
         color: #ffffff !important;
-        border: 1px solid #8b5cf6 !important;
-        border-radius: 12px !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 800 !important;
+        padding: 8px 18px !important;
+    }
+
+    /* Text Area Styling */
+    .stTextArea textarea {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border: 1px solid #38bdf8 !important;
+        border-radius: 14px !important;
         font-size: 15px !important;
     }
-    
-    [data-testid="stFileUploadDropzone"] {
-        background-color: #1e1b4b !important;
-        border: 2px dashed #38bdf8 !important;
+    .stTextArea label {
+        color: #38bdf8 !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+    }
+
+    /* Primary Action Button - Dominant Sky Blue */
+    .stButton button {
+        background: linear-gradient(135deg, #0284c7 0%, #38bdf8 50%, #0d9488 100%) !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        font-size: 18px !important;
         border-radius: 14px !important;
-    }
-    
-    [data-testid="stFileUploadDropzone"] button {
-        background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
-        color: #ffffff !important;
         border: none !important;
-        font-weight: 700 !important;
-        border-radius: 8px !important;
-    }
-
-    /* Primary Action Button */
-    div.stButton > button {
-        background: linear-gradient(135deg, #0ea5e9 0%, #7c3aed 100%) !important;
-        color: #ffffff !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        border: none !important;
-        border-radius: 12px !important;
+        box-shadow: 0 10px 25px rgba(2, 132, 199, 0.4) !important;
         padding: 12px 24px !important;
-        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
     }
 
-    /* Hero Banner */
-    .app-hero {
-        background: linear-gradient(135deg, #1e1b4b 0%, #2e1065 50%, #0f766e 100%);
-        padding: 32px 28px;
-        border-radius: 20px;
-        border: 1px solid #8b5cf6;
-        box-shadow: 0 15px 30px rgba(139, 92, 246, 0.25);
+    /* Hero Banner: Sky Blue Dominant with Purple & Turquoise Accents */
+    .skyblue-hero {
+        background: linear-gradient(135deg, #0369a1 0%, #0284c7 50%, #4c1d95 100%);
+        padding: 34px 28px;
+        border-radius: 22px;
+        border: 2px solid #38bdf8;
+        box-shadow: 0 15px 35px rgba(2, 132, 199, 0.35);
         margin-bottom: 28px;
     }
     
-    .hero-badge-tag {
-        background-color: #f59e0b;
+    .golden-badge {
+        background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
         color: #0f172a !important;
         font-size: 12px;
         font-weight: 800;
-        padding: 4px 14px;
+        padding: 5px 14px;
         border-radius: 20px;
         display: inline-block;
         margin-bottom: 10px;
         letter-spacing: 0.8px;
-        text-transform: uppercase;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
     }
     
-    .hero-title-text {
+    .skyblue-title {
         font-size: 38px;
         font-weight: 800;
-        letter-spacing: -0.5px;
         margin: 0;
         color: #ffffff !important;
+        letter-spacing: -0.5px;
     }
     
-    .hero-tagline-text {
+    .skyblue-tagline {
         font-size: 16px;
-        color: #2dd4bf !important;
-        margin-top: 6px;
+        color: #e0f2fe !important;
+        margin-top: 8px;
         font-weight: 600;
     }
 
-    /* Sidebar Author Card */
-    .sidebar-author-card {
-        background: linear-gradient(135deg, #1e1b4b 0%, #0f766e 100%);
-        border: 1px solid #2dd4bf;
-        padding: 12px 16px;
-        border-radius: 12px;
-        color: #ffffff !important;
-        font-weight: 700;
-        font-size: 14px;
-        margin-top: 10px;
-        margin-bottom: 20px;
-        text-align: center;
-        box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
-    }
-
-    /* Score Cards */
-    .card-container {
-        background: #1e1b4b;
+    /* Metric Cards: Dominant Sky Blue Borders */
+    .metric-card-skyblue {
+        background: #1e293b;
         padding: 22px;
-        border-radius: 16px;
-        border: 1px solid #8b5cf6;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        border-radius: 18px;
+        border: 2px solid #38bdf8;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         text-align: center;
     }
-    .card-title {
+    .metric-title-skyblue {
         font-size: 13px;
-        color: #2dd4bf !important;
+        color: #38bdf8 !important;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 1px;
     }
-    .card-val {
-        font-size: 42px;
+    .metric-value-skyblue {
+        font-size: 44px;
         font-weight: 800;
         margin: 8px 0;
     }
 
-    /* Stats Strip */
-    .stats-strip-bar {
-        background: #13192b;
-        border-radius: 14px;
-        border: 1px solid #38bdf8;
-        padding: 14px 20px;
+    /* Stats Bar */
+    .skyblue-stats-bar {
+        background: #1e293b;
+        border-radius: 16px;
+        border: 1px solid #0284c7;
+        padding: 16px 20px;
         display: flex;
         justify-content: space-around;
         margin-bottom: 24px;
     }
-    .stat-val-num {
-        font-size: 20px;
+    .skyblue-stat-num {
+        font-size: 22px;
         font-weight: 800;
         color: #38bdf8 !important;
     }
-    .stat-val-lbl {
+    .skyblue-stat-lbl {
         font-size: 12px;
-        color: #cbd5e1 !important;
+        color: #fbbf24 !important;
         font-weight: 600;
     }
 
     /* Marked Reader Canvas */
-    .paper-canvas {
+    .skyblue-marked-canvas {
         background: #0f172a;
         padding: 30px;
         border-radius: 18px;
         border: 1px solid #38bdf8;
-        line-height: 2.1;
+        line-height: 2.2;
         font-size: 16px;
         color: #f8fafc !important;
-        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Sidebar Description & Credit Placement */
+    .sidebar-desc-box {
+        background: #1e293b;
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid #38bdf8;
+        color: #f8fafc !important;
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 16px;
+    }
+    .sidebar-credit-card {
+        background: linear-gradient(135deg, #0284c7 0%, #0d9488 100%);
+        border: 1px solid #fbbf24;
+        padding: 12px;
+        border-radius: 12px;
+        color: #ffffff !important;
+        font-size: 14px;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 6px 15px rgba(2, 132, 199, 0.3);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Sidebar ---
-st.sidebar.title("🛡️ WriteSafe Studio")
-st.sidebar.markdown(
-    """
-    <div class="sidebar-author-card">
+# --- Sidebar Header ---
+st.sidebar.markdown("<div style='font-size: 22px; font-weight: 800; color: #38bdf8; margin-bottom: 12px;'>✨ WriteSafe Studio</div>", unsafe_allow_html=True)
+
+# 1. Description Text FIRST
+st.sidebar.markdown("""
+    <div class="sidebar-desc-box">
+        WriteSafe evaluates research drafts, essays, and documents for AI generation patterns and searches public domain web databases in real-time.
+    </div>
+""", unsafe_allow_html=True)
+
+# 2. Credit Note AFTER Description Text
+st.sidebar.markdown("""
+    <div class="sidebar-credit-card">
         👑 Crafted by: Dr. Joydip Chandra, BRSC
     </div>
-    """,
-    unsafe_allow_html=True
-)
-st.sidebar.info(
-    "**WriteSafe** evaluates research drafts, essays, and documents for AI generation patterns and searches public domain web databases in real-time."
-)
-st.sidebar.caption("High Precision • Confidential • Submission Ready")
+""", unsafe_allow_html=True)
 
-# --- Hero Header ---
+st.sidebar.caption("⚡ Fast • 🔒 Private • 🎓 Academic Ready")
+
+# --- Hero Banner ---
 st.markdown("""
-    <div class="app-hero">
-        <div class="hero-badge-tag">REAL-TIME AI & PLAGIARISM AUDITOR</div>
-        <div class="hero-title-text">🛡️ WriteSafe</div>
-        <div class="hero-tagline-text">“Catch plagiarism and AI-sounding text before you submit.”</div>
+    <div class="skyblue-hero">
+        <div class="golden-badge">✨ REAL-TIME AI & PLAGIARISM AUDITOR</div>
+        <div class="skyblue-title">🛡️ WriteSafe</div>
+        <div class="skyblue-tagline">“Catch plagiarism and AI-sounding text before you submit.”</div>
     </div>
 """, unsafe_allow_html=True)
 
 # --- Document Upload / Input ---
-uploaded_file = st.file_uploader("Upload Document (.pdf, .docx, .txt)", type=["pdf", "docx", "txt"])
-pasted_text = st.text_area("Or paste draft text directly", height=170, placeholder="Paste your essay or research paper here...")
+uploaded_file = st.file_uploader("📁 Upload Draft Document (.pdf, .docx, .txt)", type=["pdf", "docx", "txt"])
+pasted_text = st.text_area("📝 Or paste your draft text directly below:", height=170, placeholder="Paste your essay or research paper text here...")
 
 document_text = extract_text(uploaded_file) if uploaded_file else pasted_text
 
-if st.button("🚀 Run WriteSafe Analysis", type="primary", use_container_width=True):
+if st.button("🚀 Run WriteSafe Audit", type="primary", use_container_width=True):
     if not document_text.strip():
-        st.warning("Please upload a document or paste text first.")
+        st.warning("Please upload a file or paste text first.")
     else:
         st.markdown("<br>", unsafe_allow_html=True)
 
-        with st.spinner("Analyzing writing style patterns & querying web databases..."):
+        with st.spinner("Auditing AI vocabulary patterns & searching public web sources..."):
             ai_score, ai_sents, sentence_analysis = analyze_ai_patterns(document_text)
             plag_score, web_matches, web_phrases = check_web_plagiarism(document_text)
 
@@ -438,80 +478,80 @@ if st.button("🚀 Run WriteSafe Analysis", type="primary", use_container_width=
         
         with col1:
             st.markdown(f"""
-                <div class="card-container">
-                    <div class="card-title">🤖 AI Generation Probability</div>
-                    <div class="card-val" style="color: {'#f43f5e' if ai_score > 60 else '#f59e0b' if ai_score > 35 else '#2dd4bf'};">{ai_score}%</div>
+                <div class="metric-card-skyblue">
+                    <div class="metric-title-skyblue">🤖 Estimated AI Probability</div>
+                    <div class="metric-value-skyblue" style="color: {'#ef4444' if ai_score > 60 else '#f59e0b' if ai_score > 35 else '#2dd4bf'};">{ai_score}%</div>
                 </div>
             """, unsafe_allow_html=True)
             if ai_score > 60:
-                st.error("⚠️ High likelihood of AI-generated content detected.")
+                st.error("⚠️ High likelihood of machine-generated text.")
             elif ai_score > 35:
-                st.warning("⚡ Moderate AI influence or mixed editing detected.")
+                st.warning("⚡ Moderate AI influence or mixed editing.")
             else:
                 st.success("✅ Content displays natural human writing variation.")
 
         with col2:
             st.markdown(f"""
-                <div class="card-container">
-                    <div class="card-title">🌐 Web Plagiarism Score</div>
-                    <div class="card-val" style="color: {'#f43f5e' if plag_score > 50 else '#f59e0b' if plag_score > 20 else '#2dd4bf'};">{plag_score}%</div>
+                <div class="metric-card-skyblue">
+                    <div class="metric-title-skyblue">🌐 Estimated Plagiarism / Web Score</div>
+                    <div class="metric-value-skyblue" style="color: {'#ef4444' if plag_score > 50 else '#f59e0b' if plag_score > 20 else '#2dd4bf'};">{plag_score}%</div>
                 </div>
             """, unsafe_allow_html=True)
             if plag_score > 50:
-                st.error(f"⚠️ High similarity found across {len(web_matches)} web sources.")
+                st.error(f"⚠️ High similarity across {len(web_matches)} web sources.")
             elif plag_score > 20:
-                st.warning(f"⚡ Moderate similarity found across {len(web_matches)} web sources.")
+                st.warning(f"⚡ Moderate similarity across {len(web_matches)} web sources.")
             else:
-                st.success("✅ Zero public web plagiarism detected.")
+                st.success("✅ Low or no public web overlap detected.")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- Document Stats Strip ---
+        # --- Document Stats Bar ---
         st.markdown(f"""
-            <div class="stats-strip-bar">
-                <div style="text-align: center;"><div class="stat-val-num">{doc_stats['word_count']}</div><div class="stat-val-lbl">Total Words</div></div>
-                <div style="text-align: center;"><div class="stat-val-num">{doc_stats['sentence_count']}</div><div class="stat-val-lbl">Sentences</div></div>
-                <div style="text-align: center;"><div class="stat-val-num" style="color: #fbbf24;">{doc_stats['ai_flagged_count']}</div><div class="stat-val-lbl">AI Sentences</div></div>
-                <div style="text-align: center;"><div class="stat-val-num" style="color: #f43f5e;">{doc_stats['web_matches_count']}</div><div class="stat-val-lbl">Web Matches</div></div>
+            <div class="skyblue-stats-bar">
+                <div style="text-align: center;"><div class="skyblue-stat-num">{doc_stats['word_count']}</div><div class="skyblue-stat-lbl">Words</div></div>
+                <div style="text-align: center;"><div class="skyblue-stat-num">{doc_stats['sentence_count']}</div><div class="skyblue-stat-lbl">Sentences</div></div>
+                <div style="text-align: center;"><div class="skyblue-stat-num" style="color: #f59e0b !important;">{doc_stats['ai_flagged_count']}</div><div class="skyblue-stat-lbl">AI Sentences</div></div>
+                <div style="text-align: center;"><div class="skyblue-stat-num" style="color: #ef4444 !important;">{doc_stats['web_matches_count']}</div><div class="skyblue-stat-lbl">Web Matches</div></div>
             </div>
         """, unsafe_allow_html=True)
 
-        # --- Tabbed Workspace ---
+        # --- Tabs View ---
         tab1, tab2, tab3, tab4 = st.tabs([
-            "🔍 Marked Document Reader", 
+            "🖍️ Marked Document Reader", 
             "🌐 Web Source Overlaps", 
-            "📊 Sentence-by-Sentence Breakdown",
-            "📄 Export Verified PDF"
+            "📊 Sentence Analysis",
+            "📄 Export PDF Report"
         ])
 
         with tab1:
-            st.caption("🟨 **Yellow Highlight** = AI-flagged sentence | 🟥 **Red Highlight** = Exact public web match (with source link)")
+            st.caption("🟨 **Golden Highlight** = AI-flagged sentence pattern | 🟥 **Red Highlight** = Web source match (with source link)")
             highlighted_html = render_highlighted_document(document_text, ai_sents, web_phrases)
-            st.markdown(f'<div class="paper-canvas">{highlighted_html}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="skyblue-marked-canvas">{highlighted_html}</div>', unsafe_allow_html=True)
 
         with tab2:
             if web_matches:
                 st.subheader(f"Found {len(web_matches)} Matching Web Sources")
                 for idx, match in enumerate(web_matches, 1):
                     with st.expander(f"Match #{idx}: {match['title']}"):
-                        st.write(f"**Matched Phrase:** \"{match['phrase']}\"")
+                        st.write(f"**Matched Text Fragment:** \"{match['phrase']}\"")
                         st.write(f"**Direct URL:** [{match['url']}]({match['url']})")
                         if match.get('snippet'):
                             st.caption(f"**Web Snippet:** {match['snippet']}")
             else:
-                st.success("✅ No matching public domain sources detected for the checked phrases.")
+                st.success("🎉 No matching public domain sources detected for the sampled phrases.")
 
         with tab3:
-            st.subheader("Sentence-by-Sentence Analysis")
+            st.subheader("Sentence-by-Sentence AI Evaluation")
             for idx, item in enumerate(sentence_analysis, 1):
-                status_icon = "🔴 AI Flagged" if item["is_ai"] else "🟢 Natural Style"
+                status_icon = "🔴 AI Flagged" if item["is_ai"] else "🟢 Human Flow"
                 with st.expander(f"Sentence #{idx} ({item['word_count']} words) — {status_icon}"):
                     st.write(f"\"{item['sentence']}\"")
-                    st.caption(f"**Evaluation Reason:** {item['reason']}")
+                    st.caption(f"**Evaluation Detail:** {item['reason']}")
 
         with tab4:
-            st.subheader("Export PDF Audit Report")
-            st.write("Download an official summary report for your records:")
+            st.subheader("Download Verified Summary Report")
+            st.write("Generate and download a formal audit report suitable for submission or records:")
             try:
                 pdf_bytes = create_pdf_report(ai_score, plag_score, web_matches, doc_stats)
                 st.download_button(
