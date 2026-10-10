@@ -1,4 +1,5 @@
 streamlit
-scikit-learn
 pypdf
 python-docx
+duckduckgo-search
+fpdf2
