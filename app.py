@@ -10,39 +10,86 @@ from pypdf import PdfReader
 from docx import Document
 from fpdf import FPDF
 
-# --- Database & User Management Helpers ---
-USERS_FILE = "registered_users.json"
-ADMIN_PASSCODE = "Joydip.Chandra@1953"
+# --- User Database Helpers (JSON Storage) ---
+USER_DB_FILE = "registered_users.json"
 
-SECURITY_QUESTIONS = [
-    "What was the name of your first school?",
-    "What is your mother's maiden name?",
-    "What city were you born in?",
-    "What was the name of your first pet?",
-    "What is your favorite book or author?",
-    "What was your childhood nickname?"
-]
+def hash_data(data_str):
+    if not data_str:
+        return ""
+    return hashlib.sha256(data_str.strip().lower().encode("utf-8")).hexdigest()
 
 def load_users():
-    if os.path.exists(USERS_FILE):
-        try:
-            with open(USERS_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
+    if not os.path.exists(USER_DB_FILE):
+        return {}
+    try:
+        with open(USER_DB_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 def save_users(users):
     try:
-        with open(USERS_FILE, "w") as f:
-            json.dump(users, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving user data: {e}")
+        with open(USER_DB_FILE, "w") as f:
+            json.dump(users, f, indent=4)
+    except Exception:
+        pass
 
-def hash_str(s):
-    if not s:
-        return ""
-    return hashlib.sha256(s.strip().lower().encode("utf-8")).hexdigest()
+def register_user(name, email, password, sec_question, sec_answer):
+    users = load_users()
+    email_clean = email.strip().lower()
+    if email_clean in users:
+        return False, "An account with this email address already exists. Please sign in."
+    
+    users[email_clean] = {
+        "name": name.strip(),
+        "email": email_clean,
+        "password_hash": hash_data(password),
+        "sec_question": sec_question.strip(),
+        "sec_answer_hash": hash_data(sec_answer),
+        "reg_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "last_active": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "scan_count": 0
+    }
+    save_users(users)
+    return True, "Account registered successfully! You can now sign in."
+
+def authenticate_user(email, password):
+    users = load_users()
+    email_clean = email.strip().lower()
+    if email_clean not in users:
+        return False, "No account found with this email. Please register first.", None
+    
+    user = users[email_clean]
+    if user["password_hash"] == hash_data(password):
+        user["last_active"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        users[email_clean] = user
+        save_users(users)
+        return True, "Sign in successful!", user
+    else:
+        return False, "Incorrect password. Please try again.", None
+
+def increment_user_scans(email):
+    users = load_users()
+    email_clean = email.strip().lower()
+    if email_clean in users:
+        users[email_clean]["scan_count"] = users[email_clean].get("scan_count", 0) + 1
+        users[email_clean]["last_active"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        save_users(users)
+
+def reset_user_password(email, sec_answer, new_password):
+    users = load_users()
+    email_clean = email.strip().lower()
+    if email_clean not in users:
+        return False, "Account not found."
+    
+    user = users[email_clean]
+    if user.get("sec_answer_hash") == hash_data(sec_answer):
+        user["password_hash"] = hash_data(new_password)
+        users[email_clean] = user
+        save_users(users)
+        return True, "Password reset successfully! Please sign in with your new password."
+    else:
+        return False, "Incorrect security answer. Password reset failed."
 
 # --- Text Extraction Helper ---
 def extract_text(file):
@@ -161,7 +208,7 @@ def render_highlighted_document(full_text, ai_sentences, web_flagged_phrases):
 
     return highlighted_text
 
-# --- PDF Helpers ---
+# --- PDF Helpers (Bulletproof Margin Protection) ---
 def clean_pdf_str(text):
     if not text:
         return ""
@@ -186,7 +233,7 @@ def wrap_long_words(text, max_len=32):
             wrapped.append(w)
     return " ".join(wrapped)
 
-def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="Anonymous"):
+def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email=""):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -199,6 +246,12 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="An
     pdf.set_font("Helvetica", "I", 10)
     pdf.set_text_color(100, 116, 139)
     pdf.cell(0, 6, clean_pdf_str("Catch plagiarism and AI-sounding text before you submit."), new_x="LMARGIN", new_y="NEXT", align="C")
+    
+    if user_email:
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(14, 165, 233)
+        pdf.cell(0, 5, clean_pdf_str(f"Verified Audit for User: {user_email}"), new_x="LMARGIN", new_y="NEXT", align="C")
+    
     pdf.ln(4)
 
     pdf.set_draw_color(226, 232, 240)
@@ -211,7 +264,6 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="An
     
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(51, 65, 85)
-    pdf.multi_cell(0, 6, clean_pdf_str(f"- Verified User Account: {user_email}"), new_x="LMARGIN", new_y="NEXT")
     pdf.multi_cell(0, 6, clean_pdf_str(f"- Estimated AI Generation Probability: {ai_prob}%"), new_x="LMARGIN", new_y="NEXT")
     pdf.multi_cell(0, 6, clean_pdf_str(f"- Estimated Web Similarity / Plagiarism Score: {plag_prob}%"), new_x="LMARGIN", new_y="NEXT")
     pdf.multi_cell(0, 6, clean_pdf_str(f"- Total Words Analyzed: {doc_stats['word_count']}"), new_x="LMARGIN", new_y="NEXT")
@@ -232,12 +284,12 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="An
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_text_color(30, 58, 138)
             title = wrap_long_words(clean_pdf_str(match.get('title', 'Web Match')))
-            pdf.multi_cell(0, 6, clean_pdf_str(f'Match #{idx}: {title}'), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 6, clean_pdf_str(f"Match #{idx}: {title}"), new_x="LMARGIN", new_y="NEXT")
             
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(71, 85, 105)
             phrase = wrap_long_words(clean_pdf_str(match.get('phrase', '')))
-            url = wrap_long_words(clean_pdf_str(match.get('url', ''), max_len=30))
+            url = wrap_long_words(clean_pdf_str(match.get('url', '')), max_len=30)
             
             pdf.multi_cell(0, 5, clean_pdf_str(f'Matched Phrase: "{phrase}"'), new_x="LMARGIN", new_y="NEXT")
             pdf.multi_cell(0, 5, clean_pdf_str(f'Source URL: {url}'), new_x="LMARGIN", new_y="NEXT")
@@ -258,7 +310,7 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="An
     
     return bytes(pdf.output())
 
-# --- Page Config & Custom Palette CSS ---
+# --- Page Config & Custom Palette CSS (Sky Blue, Purple, Golden, Turquoise) ---
 st.set_page_config(page_title="WriteSafe", layout="wide", page_icon="✨")
 
 st.markdown("""
@@ -275,27 +327,32 @@ st.markdown("""
         color: #f8fafc;
     }
 
+    /* Streamlit Sidebar Background & Full Contrast Fix */
+    [data-testid="stSidebar"] {
+        background-color: #130e2a !important;
+        border-right: 1px solid #38bdf8 !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #f8fafc !important;
+    }
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div {
+        color: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+
     /* Force all Streamlit labels, uploaders, instructions & texts to be crystal clear */
     label, .stMarkdown, p, span, div, h1, h2, h3, h4, h5, h6, .stCaption {
         color: #f1f5f9 !important;
     }
 
-    /* Streamlit Password Visibility Eye Icon Fix */
-    [data-testid="stTextInput"] button,
-    button[aria-label="Show password"],
-    button[aria-label="Hide password"],
-    [data-testid="stTextInput"] svg {
-        color: #38bdf8 !important;
-        fill: #38bdf8 !important;
-        stroke: #38bdf8 !important;
-        opacity: 1 !important;
-        visibility: visible !important;
+    /* Inputs (Text, Password) Styling */
+    .stTextInput input {
+        background-color: #1a1532 !important;
+        color: #f8fafc !important;
+        border: 1px solid #38bdf8 !important;
+        border-radius: 10px !important;
     }
-    [data-testid="stTextInput"] button:hover {
-        background-color: rgba(56, 189, 248, 0.25) !important;
-        border-radius: 8px !important;
-    }
-
+    
     /* File Uploader Custom Styling */
     [data-testid="stFileUploader"] {
         background: #1a1532;
@@ -322,54 +379,46 @@ st.markdown("""
     [data-testid="stFileUploader"] button:hover {
         background: linear-gradient(135deg, #0284c7 0%, #7e22ce 100%) !important;
         color: #ffffff !important;
+        border: 1px solid #38bdf8 !important;
     }
 
-    /* Download Buttons Hover Fix */
-    div[data-testid="stDownloadButton"] button {
-        background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 50%, #14b8a6 100%) !important;
-        color: #ffffff !important;
-        font-weight: 800 !important;
-    }
-    div[data-testid="stDownloadButton"] button:hover {
-        background: linear-gradient(135deg, #0284c7 0%, #6d28d9 100%) !important;
-        color: #ffffff !important;
-    }
-
-    /* Text Area & Input Styling */
-    .stTextArea textarea, .stTextInput input, select {
+    /* Text Area Styling */
+    .stTextArea textarea {
         background-color: #1a1532 !important;
         color: #f8fafc !important;
         border: 1px solid #a855f7 !important;
-        border-radius: 12px !important;
+        border-radius: 14px !important;
         font-size: 15px !important;
     }
-    .stTextArea label, .stTextInput label, .stSelectbox label {
+    .stTextArea label {
         color: #2dd4bf !important;
         font-weight: 700 !important;
         font-size: 15px !important;
     }
 
-    /* Primary Buttons */
-    .stButton button {
+    /* Primary Buttons & Hover States */
+    .stButton button, div[data-testid="stDownloadButton"] button {
         background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 50%, #14b8a6 100%) !important;
         color: #ffffff !important;
         font-weight: 800 !important;
-        font-size: 18px !important;
-        border-radius: 14px !important;
+        font-size: 16px !important;
+        border-radius: 12px !important;
         border: none !important;
-        box-shadow: 0 10px 25px rgba(14, 165, 233, 0.3) !important;
-        padding: 12px 24px !important;
+        box-shadow: 0 8px 20px rgba(14, 165, 233, 0.25) !important;
+        padding: 10px 20px !important;
     }
-    .stButton button:hover {
+    .stButton button:hover, div[data-testid="stDownloadButton"] button:hover {
         background: linear-gradient(135deg, #0284c7 0%, #6d28d9 50%, #0d9488 100%) !important;
         color: #ffffff !important;
+        box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4) !important;
+        border: 1px solid #38bdf8 !important;
     }
 
     /* Hero Banner: Purple & Turquoise Gradient */
     .palette-hero {
         background: linear-gradient(135deg, #2e1065 0%, #581c87 40%, #0f766e 100%);
         padding: 30px 24px;
-        border-radius: 22px;
+        border-radius: 20px;
         border: 2px solid #38bdf8;
         box-shadow: 0 15px 35px rgba(168, 85, 247, 0.25);
         margin-bottom: 24px;
@@ -397,17 +446,17 @@ st.markdown("""
     }
     
     .palette-tagline {
-        font-size: 16px;
+        font-size: 15px;
         color: #2dd4bf !important;
         margin-top: 8px;
         font-weight: 600;
     }
 
-    /* Metric Cards */
+    /* Metric Cards: Turquoise & Sky Blue Accents */
     .metric-card-palette {
         background: #1a1532;
-        padding: 22px;
-        border-radius: 18px;
+        padding: 20px;
+        border-radius: 16px;
         border: 1px solid #38bdf8;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         text-align: center;
@@ -420,9 +469,9 @@ st.markdown("""
         letter-spacing: 1px;
     }
     .metric-value-palette {
-        font-size: 44px;
+        font-size: 42px;
         font-weight: 800;
-        margin: 8px 0;
+        margin: 6px 0;
     }
 
     /* Document Stats Bar */
@@ -449,65 +498,103 @@ st.markdown("""
     /* Marked Reader Canvas */
     .palette-marked-canvas {
         background: #130f26;
-        padding: 30px;
-        border-radius: 18px;
+        padding: 26px;
+        border-radius: 16px;
         border: 1px solid #38bdf8;
         line-height: 2.2;
         font-size: 16px;
         color: #f8fafc !important;
     }
 
-    /* Sidebar Credit Card */
-    .sidebar-credit-card {
-        background: linear-gradient(135deg, #3b0764 0%, #0f766e 100%);
-        border: 1px solid #f59e0b;
+    /* Sidebar Custom Boxes */
+    .sidebar-custom-box {
+        background: #1a1538;
+        border: 1px solid #38bdf8;
         padding: 14px;
         border-radius: 14px;
-        color: #ffffff !important;
-        font-size: 14px;
-        font-weight: 700;
-        text-align: center;
         margin-top: 10px;
-        margin-bottom: 20px;
-        box-shadow: 0 6px 15px rgba(245, 158, 11, 0.25);
+        margin-bottom: 14px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Mobile Banner Tip ---
-st.markdown("""
-    <div style="background: #1e1b4b; border: 1px solid #38bdf8; padding: 10px 16px; border-radius: 12px; text-align: center; font-weight: 700; color: #38bdf8; margin-bottom: 16px; font-size: 14px;">
-        📱 Mobile Tip: Tap the <b>&gt;</b> icon at the top-left corner to open menu controls
-    </div>
-""", unsafe_allow_html=True)
+# --- Mobile Navigation Guidance ---
+st.caption("📱 **Mobile Tip:** If using a phone, tap the **`>`** icon at the top-left corner to open the menu & sidebar.")
 
-# --- Sidebar Controls ---
+# --- Sidebar Header & Admin Controls ---
 st.sidebar.markdown("""
-    <div style="font-size: 22px; font-weight: 800; color: #38bdf8;">✨ WriteSafe Studio</div>
-    <div class="sidebar-credit-card">
+    <div style="font-size: 22px; font-weight: 800; color: #38bdf8; margin-bottom: 8px;">✨ WriteSafe Studio</div>
+    <div style="background: linear-gradient(135deg, #3b0764 0%, #0f766e 100%); border: 1px solid #f59e0b; padding: 12px; border-radius: 12px; color: #ffffff; font-size: 13px; font-weight: 700; text-align: center; margin-bottom: 14px;">
         👑 Crafted by: Dr. Joydip Chandra, BRSC
     </div>
 """, unsafe_allow_html=True)
 
-# Admin Passcode Lock in Sidebar
-st.sidebar.markdown("---")
+st.sidebar.markdown("""
+    <div class="sidebar-custom-box">
+        <div style="color: #2dd4bf; font-size: 13px; font-weight: 700; margin-bottom: 4px;">🛡️ Academic Integrity Platform</div>
+        <div style="color: #f8fafc; font-size: 12px; line-height: 1.5;">
+            WriteSafe evaluates research drafts and documents for AI generation patterns and searches public domain web databases in real-time.
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- Secret Admin Passcode Section in Sidebar ---
 with st.sidebar.expander("🔐 Secret Admin Access", expanded=False):
-    admin_pass_input = st.text_input("Enter Admin Passcode:", type="password", key="admin_pass_field")
+    admin_passcode_input = st.text_input("Enter Secret Admin Passcode:", type="password", key="admin_code_input")
     if st.button("Unlock Admin Panel", key="unlock_admin_btn"):
-        if admin_pass_input == ADMIN_PASSCODE:
+        if admin_passcode_input.strip() == "Joydip.Chandra@1953":
             st.session_state["admin_unlocked"] = True
             st.success("Admin Panel Unlocked!")
         else:
-            st.error("Invalid Admin Passcode")
+            st.session_state["admin_unlocked"] = False
+            st.error("Incorrect Secret Passcode.")
 
-if st.session_state.get("admin_unlocked"):
-    st.sidebar.success("👑 Admin Mode Active")
-    if st.sidebar.button("Lock Admin Panel"):
-        st.session_state["admin_unlocked"] = False
-        st.rerun()
+# --- Session State Initialization ---
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+if "user_email" not in st.session_state:
+    st.session_state["user_email"] = ""
+if "user_name" not in st.session_state:
+    st.session_state["user_name"] = ""
 
-st.sidebar.info("Upload research papers or essays to evaluate AI generation metrics and web similarity.")
-st.sidebar.caption("⚡ Fast • 🔒 Private • 🎓 Academic Ready")
+# --- Secret Admin Directory View (If Unlocked) ---
+if st.session_state.get("admin_unlocked", False):
+    st.markdown("""
+        <div style="background: #1a1538; border: 2px solid #f59e0b; padding: 20px; border-radius: 18px; margin-bottom: 24px;">
+            <div style="font-size: 20px; font-weight: 800; color: #fbbf24; margin-bottom: 8px;">👑 SECRET ADMIN USER DIRECTORY & USAGE STATS</div>
+            <div style="font-size: 13px; color: #2dd4bf;">Authorized Administrator View • Real-time Account Records</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    users_db = load_users()
+    if users_db:
+        user_list = []
+        for em, u in users_db.items():
+            user_list.append({
+                "Full Name": u.get("name", "N/A"),
+                "Email Address": u.get("email", em),
+                "Registration Date": u.get("reg_date", "N/A"),
+                "Total Scans": u.get("scan_count", 0),
+                "Last Active": u.get("last_active", "N/A")
+            })
+        
+        st.dataframe(user_list, use_container_width=True)
+        
+        csv_lines = ["Full Name,Email Address,Registration Date,Total Scans,Last Active\n"]
+        for u in user_list:
+            csv_lines.append(f'"{u["Full Name"]}","{u["Email Address"]}","{u["Registration Date"]}",{u["Total Scans"]} ,"{u["Last Active"]}"\n')
+        csv_data = "".join(csv_lines)
+        
+        st.download_button(
+            label="📥 Download Registered Users Directory (CSV)",
+            data=csv_data,
+            file_name="WriteSafe_Registered_Users.csv",
+            mime="text/csv",
+            type="primary"
+        )
+    else:
+        st.info("No registered users found in database yet.")
+    st.markdown("<hr style='border: 1px solid #38bdf8;'>", unsafe_allow_html=True)
 
 # --- Hero Banner ---
 st.markdown("""
@@ -518,165 +605,111 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Load current user records
-users_db = load_users()
-
-# --- ADMIN PANEL DISPLAY (If Unlocked via Passcode) ---
-if st.session_state.get("admin_unlocked"):
+# --- Authentication / Sign In / Registration Gate ---
+if not st.session_state["authenticated"]:
     st.markdown("""
-        <div style="background: #1e1538; border: 2px solid #f59e0b; padding: 22px; border-radius: 18px; margin-bottom: 24px;">
-            <h3 style="color: #fbbf24 !important; margin-top: 0;">👑 SECRET ADMIN USER DIRECTORY & ACCESS LOGS</h3>
-            <p style="color: #cbd5e1 !important;">View and manage registered user accounts across the institution.</p>
+        <div style="background: #1a1532; border: 1px solid #38bdf8; padding: 24px; border-radius: 18px; margin-bottom: 24px;">
+            <div style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-bottom: 6px;">🔐 Account Portal & Verification</div>
+            <div style="font-size: 14px; color: #2dd4bf;">Sign in or register your account to unlock the WriteSafe analysis workspace.</div>
         </div>
     """, unsafe_allow_html=True)
     
-    if users_db:
-        user_list = []
-        for email, udata in users_db.items():
-            user_list.append({
-                "Full Name": udata.get("name", "N/A"),
-                "Email Address": email,
-                "Registered Date": udata.get("registered_at", "N/A"),
-                "Total Scans": udata.get("scans", 0),
-                "Last Active": udata.get("last_login", "N/A")
-            })
-        
-        st.dataframe(user_list, use_container_width=True)
-        
-        csv_data = "Full Name,Email Address,Registered Date,Total Scans,Last Active\n"
-        for row in user_list:
-            csv_data += f'"{row["Full Name"]}","{row["Email Address"]}","{row["Registered Date"]}",{row["Total Scans"]},"{row["Last Active"]}"\n'
-            
-        st.download_button(
-            label="📥 Download Registered Users Directory (CSV)",
-            data=csv_data,
-            file_name=f"WriteSafe_Registered_Users_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-    else:
-        st.info("No registered users found in the database yet.")
-    st.markdown("<hr style='border-color: #38bdf8;'>", unsafe_allow_html=True)
-
-# --- USER AUTHENTICATION & GATE ---
-if not st.session_state.get("logged_in_user"):
-    st.subheader("🔐 User Login & Registration Gate")
-    st.write("Please sign in or register to access the WriteSafe audit workspace.")
-
     auth_tab1, auth_tab2, auth_tab3 = st.tabs([
         "🔑 Sign In", 
         "📝 First-Time Registration", 
         "🔓 Forgot Password"
     ])
-
+    
     with auth_tab1:
-        st.markdown("#### Sign In to Your Account")
-        login_email = st.text_input("Registered Email Address:", key="login_email_input").strip().lower()
-        login_password = st.text_input("Password:", type="password", key="login_pass_input")
-
-        if st.button("🚀 Sign In", type="primary", use_container_width=True):
-            if not login_email or not login_password:
+        st.subheader("Existing User Sign In")
+        login_email = st.text_input("Registered Email Address:", key="login_email")
+        login_password = st.text_input("Password:", type="password", key="login_password")
+        
+        if st.button("🚀 Sign In to Workspace", key="login_btn", type="primary"):
+            if not login_email.strip() or not login_password.strip():
                 st.warning("Please enter both email and password.")
-            elif login_email not in users_db:
-                st.error("No account found with this email. Please register first.")
             else:
-                user_record = users_db[login_email]
-                if user_record.get("password") == hash_str(login_password):
-                    user_record["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    save_users(users_db)
-                    st.session_state["logged_in_user"] = login_email
-                    st.session_state["user_name"] = user_record.get("name", "User")
-                    st.success(f"Welcome back, {user_record.get('name')}!")
+                success, msg, u_data = authenticate_user(login_email, login_password)
+                if success:
+                    st.session_state["authenticated"] = True
+                    st.session_state["user_email"] = u_data["email"]
+                    st.session_state["user_name"] = u_data["name"]
+                    st.success(msg)
                     st.rerun()
                 else:
-                    st.error("Incorrect password. Please try again or use Forgot Password.")
-
+                    st.error(msg)
+                    
     with auth_tab2:
-        st.markdown("#### First-Time Registration")
-        reg_name = st.text_input("Full Name:", key="reg_name_input")
-        reg_email = st.text_input("Email Address:", key="reg_email_input").strip().lower()
-        reg_pass = st.text_input("Create Password:", type="password", key="reg_pass_input")
-        reg_pass_confirm = st.text_input("Confirm Password:", type="password", key="reg_pass_confirm_input")
+        st.subheader("Create New Account")
+        reg_name = st.text_input("Full Name:", key="reg_name")
+        reg_email = st.text_input("Email Address:", key="reg_email")
+        reg_password = st.text_input("Create Password:", type="password", key="reg_password")
+        reg_confirm_password = st.text_input("Confirm Password:", type="password", key="reg_confirm_password")
         
-        reg_sq = st.selectbox("Select a Security Question:", SECURITY_QUESTIONS, key="reg_sq_input")
-        reg_sa = st.text_input("Security Answer (for password resets):", type="password", key="reg_sa_input")
-
-        if st.button("✨ Register Account", type="primary", use_container_width=True):
-            if not reg_name or not reg_email or not reg_pass or not reg_sa:
-                st.warning("Please fill in all registration fields.")
-            elif "@" not in reg_email or "." not in reg_email:
-                st.error("Please enter a valid email address.")
-            elif reg_pass != reg_pass_confirm:
-                st.error("Passwords do not match!")
-            elif reg_email in users_db:
-                st.error("An account with this email already exists. Please Sign In.")
+        reg_sec_question = st.text_input("Security Question (e.g., What is your first school name?):", key="reg_sec_q")
+        reg_sec_answer = st.text_input("Security Answer:", key="reg_sec_a")
+        
+        if st.button("✨ Register Account", key="reg_btn", type="primary"):
+            if not reg_name.strip() or not reg_email.strip() or not reg_password.strip() or not reg_sec_answer.strip():
+                st.warning("Please fill in all required registration fields.")
+            elif reg_password != reg_confirm_password:
+                st.error("Passwords do not match. Please check again.")
             else:
-                users_db[reg_email] = {
-                    "name": reg_name.strip(),
-                    "password": hash_str(reg_pass),
-                    "security_question": reg_sq,
-                    "security_answer": hash_str(reg_sa),
-                    "registered_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "last_login": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "scans": 0
-                }
-                save_users(users_db)
-                st.success("🎉 Registration successful! You can now Sign In using your credentials.")
-
-    with auth_tab3:
-        st.markdown("#### Reset Your Password")
-        st.caption("Verify your registered email address first to view your security question.")
-        
-        forgot_email = st.text_input("Registered Email Address:", key="forgot_email_input").strip().lower()
-        
-        if st.button("🔍 Submit Email & Find Account", key="find_account_btn"):
-            if not forgot_email:
-                st.warning("Please enter your registered email address.")
-            elif forgot_email not in users_db:
-                st.error("No account found with this email address.")
-                st.session_state["forgot_verified_email"] = None
-            else:
-                st.session_state["forgot_verified_email"] = forgot_email
-                st.success("Account found! Please answer your security question below.")
-
-        if st.session_state.get("forgot_verified_email"):
-            active_email = st.session_state["forgot_verified_email"]
-            user_data = users_db.get(active_email, {})
-            
-            st.info(f"Verified Account: **{active_email}**")
-            st.markdown(f"**Security Question:** *{user_data.get('security_question', SECURITY_QUESTIONS[0])}*")
-            
-            forgot_sa = st.text_input("Your Security Answer:", type="password", key="forgot_sa_input")
-            new_pass = st.text_input("New Password:", type="password", key="new_pass_input")
-            new_pass_confirm = st.text_input("Confirm New Password:", type="password", key="new_pass_confirm_input")
-            
-            if st.button("Regenerate & Reset Password", type="primary", use_container_width=True):
-                if not forgot_sa or not new_pass:
-                    st.warning("Please fill in your security answer and new password.")
-                elif hash_str(forgot_sa) != user_data.get("security_answer"):
-                    st.error("Incorrect security answer!")
-                elif new_pass != new_pass_confirm:
-                    st.error("New passwords do not match!")
+                success, msg = register_user(reg_name, reg_email, reg_password, reg_sec_question, reg_sec_answer)
+                if success:
+                    st.success(msg)
                 else:
-                    user_data["password"] = hash_str(new_pass)
-                    save_users(users_db)
-                    st.session_state["forgot_verified_email"] = None
-                    st.success("🎉 Password reset successfully! Please sign in with your new password.")
+                    st.error(msg)
+                    
+    with auth_tab3:
+        st.subheader("Reset Forgotten Password")
+        
+        forgot_email_input = st.text_input("Enter Registered Email Address:", key="forgot_email_in")
+        
+        if st.button("🔍 Submit Email & Find Account", key="find_acc_btn"):
+            users_db = load_users()
+            email_clean = forgot_email_input.strip().lower()
+            if email_clean in users_db:
+                st.session_state["found_forgot_user"] = users_db[email_clean]
+                st.success("Account found! Please answer your security question below.")
+            else:
+                st.session_state["found_forgot_user"] = None
+                st.error("No account found with this email address.")
+                
+        if st.session_state.get("found_forgot_user"):
+            u_found = st.session_state["found_forgot_user"]
+            st.markdown(f"**Security Question:** {u_found.get('sec_question', 'Security Verification')}")
+            
+            ans_input = st.text_input("Your Security Answer:", key="forgot_ans_in")
+            new_pass_input = st.text_input("Enter New Password:", type="password", key="forgot_new_pass")
+            confirm_new_pass_input = st.text_input("Confirm New Password:", type="password", key="forgot_conf_pass")
+            
+            if st.button("🔄 Regenerate & Reset Password", key="reset_pass_btn", type="primary"):
+                if not ans_input.strip() or not new_pass_input.strip():
+                    st.warning("Please complete all security fields.")
+                elif new_pass_input != confirm_new_pass_input:
+                    st.error("New passwords do not match.")
+                else:
+                    ok, r_msg = reset_user_password(u_found["email"], ans_input, new_pass_input)
+                    if ok:
+                        st.success(r_msg)
+                        st.session_state["found_forgot_user"] = None
+                    else:
+                        st.error(r_msg)
 
-# --- MAIN WORKSPACE (IF LOGGED IN) ---
 else:
-    current_email = st.session_state["logged_in_user"]
-    current_name = st.session_state.get("user_name", "User")
-
-    col_u1, col_u2 = st.columns([3, 1])
-    with col_u1:
-        st.markdown(f"<div style='font-size: 18px; font-weight: 700; color: #2dd4bf;'>👤 Active User: {current_name} ({current_email})</div>", unsafe_allow_html=True)
-    with col_u2:
-        if st.button("🚪 Sign Out"):
-            st.session_state["logged_in_user"] = None
-            st.session_state["user_name"] = None
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    # --- Authenticated User Header Bar ---
+    st.markdown(f"""
+        <div style="background: #1a1532; border: 1px solid #2dd4bf; padding: 14px 20px; border-radius: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="color: #2dd4bf; font-weight: 700; font-size: 15px;">👤 Logged in as: <span style="color: #ffffff;">{st.session_state['user_name']}</span> ({st.session_state['user_email']})</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if st.sidebar.button("🚪 Sign Out", key="signout_btn"):
+        st.session_state["authenticated"] = False
+        st.session_state["user_email"] = ""
+        st.session_state["user_name"] = ""
+        st.rerun()
 
     # --- Document Upload / Input ---
     uploaded_file = st.file_uploader("📁 Upload Draft Document (.pdf, .docx, .txt)", type=["pdf", "docx", "txt"])
@@ -688,12 +721,7 @@ else:
         if not document_text.strip():
             st.warning("Please upload a file or paste text first.")
         else:
-            # Update user scan count
-            if current_email in users_db:
-                users_db[current_email]["scans"] = users_db[current_email].get("scans", 0) + 1
-                users_db[current_email]["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                save_users(users_db)
-
+            increment_user_scans(st.session_state["user_email"])
             st.markdown("<br>", unsafe_allow_html=True)
 
             with st.spinner("Auditing AI vocabulary patterns & searching public web sources..."):
@@ -789,11 +817,11 @@ else:
                 st.subheader("Download Verified Summary Report")
                 st.write("Generate and download a formal audit report suitable for submission or records:")
                 try:
-                    pdf_bytes = create_pdf_report(ai_score, plag_score, web_matches, doc_stats, user_email=current_email)
+                    pdf_bytes = create_pdf_report(ai_score, plag_score, web_matches, doc_stats, user_email=st.session_state["user_email"])
                     st.download_button(
                         label="📥 Download WriteSafe PDF Summary Report",
                         data=pdf_bytes,
-                        file_name=f"WriteSafe_Analysis_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        file_name="WriteSafe_Plagiarism_AI_Analysis_Report.pdf",
                         mime="application/pdf",
                         type="primary"
                     )
