@@ -9,9 +9,11 @@ from pypdf import PdfReader
 from docx import Document
 from fpdf import FPDF
 
-# --- User Database Helper (JSON based persistence) ---
+# --- Admin Email Configuration ---
+ADMIN_EMAIL = "joydip@brsc.ac.in"
 USER_DB_FILE = "registered_users.json"
 
+# --- User Database Helper Functions ---
 def load_registered_users():
     if os.path.exists(USER_DB_FILE):
         try:
@@ -21,32 +23,41 @@ def load_registered_users():
             return {}
     return {}
 
-def register_user(name, email):
-    users = load_registered_users()
+def save_registered_users(users_dict):
+    try:
+        with open(USER_DB_FILE, "w") as f:
+            json.dump(users_dict, f, indent=4)
+    except Exception:
+        pass
+
+def register_or_login_user(name, email):
     email_clean = email.strip().lower()
+    users = load_registered_users()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     if email_clean not in users:
         users[email_clean] = {
             "name": name.strip(),
             "email": email_clean,
-            "registered_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "registered_at": now_str,
             "scans_count": 0,
-            "last_active": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "last_active": now_str
         }
     else:
-        users[email_clean]["last_active"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    with open(USER_DB_FILE, "w") as f:
-        json.dump(users, f, indent=2)
+        users[email_clean]["last_active"] = now_str
+        if name.strip():
+            users[email_clean]["name"] = name.strip()
+            
+    save_registered_users(users)
     return users[email_clean]
 
-def log_user_scan(email):
-    users = load_registered_users()
+def increment_user_scan(email):
     email_clean = email.strip().lower()
+    users = load_registered_users()
     if email_clean in users:
         users[email_clean]["scans_count"] = users[email_clean].get("scans_count", 0) + 1
         users[email_clean]["last_active"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(USER_DB_FILE, "w") as f:
-            json.dump(users, f, indent=2)
+        save_registered_users(users)
 
 # --- Text Extraction Helper ---
 def extract_text(file):
@@ -204,7 +215,7 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="")
     pdf.set_text_color(100, 116, 139)
     pdf.cell(0, 6, clean_pdf_str("Catch plagiarism and AI-sounding text before you submit."), new_x="LMARGIN", new_y="NEXT", align="C")
     if user_email:
-        pdf.cell(0, 5, clean_pdf_str(f"Verified Audit for Registered User: {user_email}"), new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.cell(0, 5, clean_pdf_str(f"Audited For Verified User: {user_email}"), new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(4)
 
     pdf.set_draw_color(226, 232, 240)
@@ -245,7 +256,7 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="")
             url = wrap_long_words(clean_pdf_str(match.get('url', '')), max_len=30)
             
             pdf.multi_cell(0, 5, clean_pdf_str(f"Matched Phrase: \"{phrase}\""), new_x="LMARGIN", new_y="NEXT")
-            pdf.multi_cell(0, 5, clean_pdf_str(f"Source URL: {url}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5, clean_pdf_str(f"Source URL: {url}\"), new_x=\"LMARGIN\", new_y=\"NEXT\")
             pdf.ln(3)
     else:
         pdf.set_font("Helvetica", "", 10)
@@ -263,7 +274,7 @@ def create_pdf_report(ai_prob, plag_prob, web_matches, doc_stats, user_email="")
     
     return bytes(pdf.output())
 
-# --- Page Config & High Contrast Palette CSS ---
+# --- Page Config & Custom Styling ---
 st.set_page_config(page_title="WriteSafe", layout="wide", page_icon="✨")
 
 st.markdown("""
@@ -274,34 +285,20 @@ st.markdown("""
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
     
-    /* Global Background: Deep Purple-Slate */
+    /* Background: Deep Purple-Slate */
     .stApp {
-        background-color: #0d091a;
+        background-color: #0f0b1e;
         color: #f8fafc;
     }
 
-    /* Sidebar Background Styling */
-    [data-testid="stSidebar"] {
-        background-color: #130e2a !important;
-        border-right: 1px solid #38bdf8 !important;
+    /* Force all Streamlit labels, uploaders, instructions & texts to be crystal clear */
+    label, .stMarkdown, p, span, div, h1, h2, h3, h4, h5, h6, .stCaption {
+        color: #f1f5f9 !important;
     }
 
-    /* Force high-contrast legible text colors across all containers */
-    label, p, span, div, h1, h2, h3, h4, h5, h6, .stCaption {
-        color: #f8fafc !important;
-    }
-
-    /* Alert / Info Box Styling */
-    [data-testid="stAlert"], .stAlert {
-        background-color: #1a1538 !important;
-        border: 1px solid #38bdf8 !important;
-        color: #f8fafc !important;
-        border-radius: 12px !important;
-    }
-
-    /* Custom File Uploader Styling */
+    /* File Uploader Custom Styling */
     [data-testid="stFileUploader"] {
-        background: #181230;
+        background: #1a1532;
         border: 2px dashed #38bdf8;
         border-radius: 16px;
         padding: 20px;
@@ -323,45 +320,40 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* Text Input & Textarea Styling */
-    .stTextInput input, .stTextArea textarea {
-        background-color: #181230 !important;
+    /* Text Area Styling */
+    .stTextArea textarea, .stTextInput input {
+        background-color: #1a1532 !important;
         color: #f8fafc !important;
         border: 1px solid #38bdf8 !important;
-        border-radius: 12px !important;
-        font-size: 15px !important;
-    }
-    .stTextInput label, .stTextArea label {
-        color: #38bdf8 !important;
-        font-weight: 700 !important;
+        border-radius: 14px !important;
         font-size: 15px !important;
     }
 
-    /* Primary Action Buttons */
+    /* Primary Buttons */
     .stButton button {
         background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 50%, #14b8a6 100%) !important;
         color: #ffffff !important;
         font-weight: 800 !important;
-        font-size: 17px !important;
-        border-radius: 12px !important;
+        font-size: 18px !important;
+        border-radius: 14px !important;
         border: none !important;
         box-shadow: 0 10px 25px rgba(14, 165, 233, 0.3) !important;
         padding: 12px 24px !important;
     }
 
-    /* Hero Banner: Sky Blue, Purple & Turquoise */
+    /* Hero Banner: Sky Blue & Purple Gradient */
     .palette-hero {
-        background: linear-gradient(135deg, #1e1b4b 0%, #3b0764 40%, #0f766e 100%);
+        background: linear-gradient(135deg, #0284c7 0%, #3b0764 50%, #0f766e 100%);
         padding: 34px 28px;
         border-radius: 22px;
         border: 2px solid #38bdf8;
-        box-shadow: 0 15px 35px rgba(56, 189, 248, 0.2);
+        box-shadow: 0 15px 35px rgba(2, 132, 199, 0.25);
         margin-bottom: 28px;
     }
     
     .golden-badge {
         background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
-        color: #0f172a !important;
+        color: #0f172a;
         font-size: 12px;
         font-weight: 800;
         padding: 5px 14px;
@@ -382,14 +374,14 @@ st.markdown("""
     
     .palette-tagline {
         font-size: 16px;
-        color: #2dd4bf !important;
+        color: #38bdf8 !important;
         margin-top: 8px;
         font-weight: 600;
     }
 
     /* Metric Cards */
     .metric-card-palette {
-        background: #181230;
+        background: #1a1532;
         padding: 22px;
         border-radius: 18px;
         border: 1px solid #38bdf8;
@@ -411,9 +403,9 @@ st.markdown("""
 
     /* Document Stats Bar */
     .palette-stats-bar {
-        background: #181230;
+        background: #1a1532;
         border-radius: 16px;
-        border: 1px solid #8b5cf6;
+        border: 1px solid #38bdf8;
         padding: 16px 20px;
         display: flex;
         justify-content: space-around;
@@ -432,7 +424,7 @@ st.markdown("""
 
     /* Marked Reader Canvas */
     .palette-marked-canvas {
-        background: #130e28;
+        background: #130f26;
         padding: 30px;
         border-radius: 18px;
         border: 1px solid #38bdf8;
@@ -441,21 +433,23 @@ st.markdown("""
         color: #f8fafc !important;
     }
 
-    /* Custom Sidebar Card Elements */
-    .sidebar-desc-card {
-        background: #1a1538;
+    /* Sidebar Cards */
+    .sidebar-desc-box {
+        background-color: #1a1538;
         border: 1px solid #38bdf8;
         padding: 14px;
         border-radius: 12px;
-        color: #f8fafc !important;
-        font-size: 13.5px;
-        line-height: 1.6;
         margin-top: 10px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
-
+    .sidebar-desc-text {
+        color: #f8fafc !important;
+        font-size: 13px;
+        line-height: 1.5;
+        font-weight: 500;
+    }
     .sidebar-credit-card {
-        background: linear-gradient(135deg, #3b0764 0%, #0f766e 100%);
+        background: linear-gradient(135deg, #0284c7 0%, #0f766e 100%);
         border: 1px solid #f59e0b;
         padding: 12px;
         border-radius: 12px;
@@ -463,77 +457,88 @@ st.markdown("""
         font-size: 14px;
         font-weight: 700;
         text-align: center;
+        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
         margin-bottom: 20px;
-        box-shadow: 0 6px 15px rgba(245, 158, 11, 0.25);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Sidebar Header, Description & Credit Note (Custom High-Contrast HTML) ---
+# --- Sidebar Component ---
 st.sidebar.markdown("""
-    <div style="font-size: 24px; font-weight: 800; color: #38bdf8; margin-bottom: 4px;">
-        ✨ WriteSafe Studio
-    </div>
-    <div class="sidebar-desc-card">
-        WriteSafe evaluates research drafts, essays, and documents for AI generation patterns and searches public domain web databases in real-time.
+    <div style="font-size: 22px; font-weight: 800; color: #38bdf8; margin-bottom: 8px;">✨ WriteSafe Studio</div>
+    <div class="sidebar-desc-box">
+        <div class="sidebar-desc-text">
+            <b>WriteSafe</b> evaluates research drafts, essays, and documents for AI generation patterns and searches public domain web databases in real-time.
+        </div>
     </div>
     <div class="sidebar-credit-card">
         👑 Crafted by: Dr. Joydip Chandra, BRSC
     </div>
 """, unsafe_allow_html=True)
 
-# --- User Session Management & Email Registration Gate ---
-if "user" not in st.session_state:
-    st.session_state["user"] = None
-
-# Sidebar User Status
-if st.session_state["user"]:
-    st.sidebar.markdown(f"""
-        <div style="background: #181230; border: 1px solid #2dd4bf; padding: 12px; border-radius: 10px; margin-bottom: 15px;">
-            <span style="color: #2dd4bf; font-weight: 700; font-size: 13px;">ACCOUNT ACTIVE</span><br>
-            <span style="color: #f8fafc; font-weight: 600;">{st.session_state['user']['name']}</span><br>
-            <span style="color: #94a3b8; font-size: 12px;">{st.session_state['user']['email']}</span>
-        </div>
-    """, unsafe_allow_html=True)
-    if st.sidebar.button("Logout"):
-        st.session_state["user"] = None
-        st.rerun()
-
 st.sidebar.caption("⚡ Fast • 🔒 Private • 🎓 Academic Ready")
 
-# --- Main App Layout ---
+# Session State for User Auth
+if "user_email" not in st.session_state:
+    st.session_state["user_email"] = ""
+if "user_name" not in st.session_state:
+    st.session_state["user_name"] = ""
 
-# Hero Banner
-st.markdown("""
-    <div class="palette-hero">
-        <div class="golden-badge">✨ REAL-TIME AI & PLAGIARISM AUDITOR</div>
-        <div class="palette-title">🛡️ WriteSafe</div>
-        <div class="palette-tagline">“Catch plagiarism and AI-sounding text before you submit.”</div>
-    </div>
-""", unsafe_allow_html=True)
+# --- Sidebar User Status & Logout ---
+if st.session_state["user_email"]:
+    st.sidebar.markdown("---")
+    st.sidebar.success(f"👤 Logged in as:\n**{st.session_state['user_name']}**\n({st.session_state['user_email']})")
+    if st.session_state["user_email"].strip().lower() == ADMIN_EMAIL.lower():
+        st.sidebar.info("👑 **Admin Access Granted**")
+    if st.sidebar.button("🚪 Log Out"):
+        st.session_state["user_email"] = ""
+        st.session_state["user_name"] = ""
+        st.rerun()
 
-# Registration / Sign-in Gate
-if st.session_state["user"] is None:
-    st.markdown("### 🔐 User Registration Required")
-    st.write("Please enter your name and email address below to access the WriteSafe Studio workspace:")
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        user_name = st.text_input("Full Name", placeholder="e.g. Rahul Sharma")
-    with col_b:
-        user_email = st.text_input("Email Address", placeholder="e.g. rahul@example.com")
-        
-    if st.button("Unlock WriteSafe Workspace 🚀", type="primary"):
-        if not user_name.strip() or not user_email.strip() or "@" not in user_email:
-            st.error("Please enter a valid Name and Email Address.")
-        else:
-            user_data = register_user(user_name, user_email)
-            st.session_state["user"] = user_data
-            st.success(f"Welcome, {user_data['name']}! Your workspace is unlocked.")
-            st.rerun()
+# --- Registration Gate if Not Logged In ---
+if not st.session_state["user_email"]:
+    st.markdown("""
+        <div class="palette-hero">
+            <div class="golden-badge">✨ USER REGISTRATION GATE</div>
+            <div class="palette-title">🛡️ Welcome to WriteSafe</div>
+            <div class="palette-tagline">“Please register your email to access the AI & Plagiarism Scanner workspace.”</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("🔑 Instant Registration")
+        reg_name = st.text_input("Full Name", placeholder="e.g. Dr. Joydip Chandra or Student Name")
+        reg_email = st.text_input("Email Address", placeholder="e.g. student@gmail.com or name@brsc.ac.in")
+
+        if st.button("🔓 Unlock WriteSafe Workspace", type="primary", use_container_width=True):
+            if not reg_email.strip() or "@" not in reg_email or "." not in reg_email:
+                st.error("Please enter a valid email address.")
+            else:
+                user_record = register_or_login_user(reg_name or "Anonymous User", reg_email)
+                st.session_state["user_email"] = user_record["email"]
+                st.session_state["user_name"] = user_record["name"]
+                st.success("Registration successful! Loading workspace...")
+                st.rerun()
+    with col2:
+        st.info(
+            "🔒 **Privacy Notice:**\n"
+            "- Registration is free and open to all users.\n"
+            "- Your email is used to generate personalized audit reports.\n"
+            "- No document text is permanently stored on external servers."
+        )
 
 else:
-    # --- Unlocked Main Workspace ---
+    # --- Main Workspace when Logged In ---
+    st.markdown("""
+        <div class="palette-hero">
+            <div class="golden-badge">✨ AI & PLAGIARISM AUDITOR</div>
+            <div class="palette-title">🛡️ WriteSafe</div>
+            <div class="palette-tagline">“Catch plagiarism and AI-sounding text before you submit.”</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- Document Upload / Input ---
     uploaded_file = st.file_uploader("📁 Upload Draft Document (.pdf, .docx, .txt)", type=["pdf", "docx", "txt"])
     pasted_text = st.text_area("📝 Or paste your draft text directly below:", height=170, placeholder="Paste your essay or research paper text here...")
 
@@ -543,7 +548,7 @@ else:
         if not document_text.strip():
             st.warning("Please upload a file or paste text first.")
         else:
-            log_user_scan(st.session_state["user"]["email"])
+            increment_user_scan(st.session_state["user_email"])
             st.markdown("<br>", unsafe_allow_html=True)
 
             with st.spinner("Auditing AI vocabulary patterns & searching public web sources..."):
@@ -602,14 +607,24 @@ else:
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- Tabs View ---
-            tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                "🖍️ Marked Document Reader", 
-                "🌐 Web Source Overlaps", 
-                "📊 Sentence Analysis",
-                "📄 Export PDF Report",
-                "👑 Admin User Directory"
-            ])
+            # --- Conditional Tabs: Check Admin Status ---
+            is_admin = st.session_state["user_email"].strip().lower() == ADMIN_EMAIL.lower()
+            
+            if is_admin:
+                tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                    "🖍️ Marked Document Reader", 
+                    "🌐 Web Source Overlaps", 
+                    "📊 Sentence Analysis",
+                    "📄 Export PDF Report",
+                    "👑 Admin User Directory"
+                ])
+            else:
+                tab1, tab2, tab3, tab4 = st.tabs([
+                    "🖍️ Marked Document Reader", 
+                    "🌐 Web Source Overlaps", 
+                    "📊 Sentence Analysis",
+                    "📄 Export PDF Report"
+                ])
 
             with tab1:
                 st.caption("🟨 **Golden Highlight** = AI-flagged sentence pattern | 🟥 **Red Highlight** = Web source match (with source link)")
@@ -640,10 +655,7 @@ else:
                 st.subheader("Download Verified Summary Report")
                 st.write("Generate and download a formal audit report suitable for submission or records:")
                 try:
-                    pdf_bytes = create_pdf_report(
-                        ai_score, plag_score, web_matches, doc_stats, 
-                        user_email=st.session_state["user"]["email"]
-                    )
+                    pdf_bytes = create_pdf_report(ai_score, plag_score, web_matches, doc_stats, st.session_state["user_email"])
                     st.download_button(
                         label="📥 Download WriteSafe PDF Summary Report",
                         data=pdf_bytes,
@@ -654,17 +666,50 @@ else:
                 except Exception as e:
                     st.error(f"Could not generate PDF: {e}")
 
-            with tab5:
-                st.subheader("👥 Registered Users Directory")
-                registered_users = load_registered_users()
-                if registered_users:
-                    users_list = list(registered_users.values())
-                    st.dataframe(users_list, use_container_width=True)
-                    st.download_button(
-                        label="📥 Export Users Directory (JSON)",
-                        data=json.dumps(users_list, indent=2),
-                        file_name="registered_users_directory.json",
-                        mime="application/json"
-                    )
-                else:
-                    st.info("No registered users logged yet.")
+            if is_admin:
+                with tab5:
+                    st.subheader("👑 Admin User Directory & Usage Analytics")
+                    st.caption(f"Strict Admin View — Only visible to **{ADMIN_EMAIL}**.")
+                    
+                    users_data = load_registered_users()
+                    if users_data:
+                        total_users = len(users_data)
+                        total_scans = sum(u.get("scans_count", 0) for u in users_data.values())
+                        
+                        m_col1, m_col2 = st.columns(2)
+                        with m_col1:
+                            st.metric("Total Registered Users", total_users)
+                        with m_col2:
+                            st.metric("Total Document Scans Run", total_scans)
+                        
+                        st.divider()
+                        st.markdown("### Registered Users List")
+                        
+                        table_data = []
+                        for u_email, u_info in users_data.items():
+                            table_data.append({
+                                "Name": u_info.get("name", "N/A"),
+                                "Email": u_email,
+                                "Registered At": u_info.get("registered_at", "N/A"),
+                                "Scans Run": u_info.get("scans_count", 0),
+                                "Last Active": u_info.get("last_active", "N/A")
+                            })
+                        
+                        st.dataframe(table_data, use_container_width=True)
+                        
+                        # Prepare CSV Download
+                        import csv
+                        import io
+                        csv_buffer = io.StringIO()
+                        writer = csv.DictWriter(csv_buffer, fieldnames=["Name", "Email", "Registered At", "Scans Run", "Last Active"])
+                        writer.writeheader()
+                        writer.writerows(table_data)
+                        
+                        st.download_button(
+                            label="📥 Download Registered Users CSV",
+                            data=csv_buffer.getvalue(),
+                            file_name="WriteSafe_Registered_Users.csv",
+                            mime="text/csv"
+                        )
+                    else:
+                        st.info("No registered users recorded yet.")
